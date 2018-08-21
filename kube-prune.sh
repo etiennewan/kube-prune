@@ -37,7 +37,7 @@ while true; do
   esac
 done
 
-mapfile lines < <(kubectl get pods $NAMESPACE)
+readarray lines < <(kubectl get pods $NAMESPACE)
 
 # HEADER
 echo -n "${lines[0]}"
@@ -69,7 +69,7 @@ if [ $TIME ]; then
         fi
     done <<< "${RESULTS[*]}"
 
-    mapfile RESULTS < <(printf "$RESULTS_TIME")
+    readarray RESULTS < <(printf "$RESULTS_TIME")
 fi
 
 
@@ -82,7 +82,7 @@ if $DELETE; then
         name=$(echo "$each_tr" | cut -f $name_field_number -d ' ')
         if [ $name ]; then
             echo "--> Deleting $name" 
-            kubectl delete pod "$name" --now
+            kubectl delete pod "$name" $NAMESPACE 
         fi
     done <<< "${RESULTS[*]}"
 fi

@@ -1,14 +1,14 @@
 #! /bin/bash
 
-DELETE=false
-NAMESPACE="--all-namespaces"
+DELETE="false"
+NAMESPACE="false"
 age_field_number="6"
 name_field_number="2"
 TIME=
 PATTERN=
 
 help () {
-    echo $(basename "$0")' [-h | --help] [-n | --namespace <namespace>] [-t | --time <time>] [-p | --pattern <pattern>] [--confirm-deletion]'
+    echo $(basename "$0")' [-h | --help] (-n | --namespace <namespace>) [-t | --time <time>] [-p | --pattern <pattern>] [--confirm-deletion]'
     echo ''
     echo 'Filter pods by namespace, matching a pattern, or older than a given time, then delete them.'
     echo 'Uses kubectl. Make sure kubectl is installed, and that you can list your pods with `kubectl get pods --all-namespaces`.'
@@ -27,7 +27,7 @@ help () {
 
 while true; do
   case "$1" in
-    --confirm-deletion ) DELETE=true; shift ;;
+    --confirm-deletion ) DELETE="true"; shift ;;
     -h | --help ) help;;
     -n | --namespace ) NAMESPACE="-n $2"; age_field_number="5"; name_field_number="1"; shift 2;;
     -t | --time ) TIME="$2"; shift 2;;
@@ -36,6 +36,11 @@ while true; do
     * ) break ;;
   esac
 done
+
+if [ "$NAMESPACE" = "false" ]; then
+  echo "Error: --namespace is mandatory."
+  exit 1
+fi
 
 readarray lines < <(kubectl get pods $NAMESPACE)
 
@@ -62,7 +67,7 @@ if [ $TIME ]; then
         age=$(echo "$each_tr" | cut -f $age_field_number -d ' ')
         given_age_unit=$(echo "$age" | grep -oE "[$units]")
         age_wo_unit=${age%$given_age_unit}
-	if [ $age ]; then
+    if [ $age ]; then
             if [[ ! -z "$bigger_units" && ! -z $(echo "$age" | grep -oE "[$bigger_units]") ]] || [[ ! -z $(echo "$age" | grep -oE "[$given_time_unit]") && "$age_wo_unit" -ge "$time_wo_unit" ]]; then
                 RESULTS_TIME+="$each\n"
             fi
@@ -75,14 +80,14 @@ fi
 
 echo -e "${RESULTS[*]}"
 
-if $DELETE; then
+if [ "$DELETE" = "true" ]; then
     echo -e "\nDeleting pods listed above ..."
     while read -r each; do
         each_tr=$( echo "$each" | tr -s " ")
         name=$(echo "$each_tr" | cut -f $name_field_number -d ' ')
         if [ $name ]; then
-            echo "--> Deleting $name" 
-            kubectl delete pod "$name" $NAMESPACE 
+            echo "--> Deleting $name"
+            kubectl delete pod "$name" "$NAMESPACE"
         fi
     done <<< "${RESULTS[*]}"
 fi
